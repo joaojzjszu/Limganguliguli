@@ -1,0 +1,48 @@
+-- Kill Aura Blox Fruits - Ativa automaticamente, ignora se está com arma ou não, delay 0.0001s, range 999
+local plr = game.Players.LocalPlayer
+local char = plr.Character or plr.CharacterAdded:Wait()
+local hrp = char:WaitForChild("HumanoidRootPart")
+
+local delayTime = 0.0001
+local range = 999
+
+-- Função para atacar o NPC
+local function Attack(target)
+    if not target:FindFirstChild("HumanoidRootPart") or not target:FindFirstChild("Humanoid") then return end
+    if target.Humanoid.Health <= 0 then return end
+
+    local CombatFramework = debug.getupvalues(require(plr.PlayerScripts.CombatFramework))[2]
+    local rigLib = require(game.ReplicatedStorage.CombatFramework.RigLib)
+    local hits = rigLib.getBladeHits(plr.Character, target.HumanoidRootPart.Position, 999)
+    local realHits = {}
+
+    if typeof(hits) == "table" then
+        for _, hit in pairs(hits) do
+            table.insert(realHits, hit)
+        end
+    end
+
+    CombatFramework.activeController.timeToNextAttack = 0
+    CombatFramework.activeController.hitboxMagnitude = 999
+    CombatFramework.activeController:attack()
+
+    -- Mesmo sem arma, força o sistema a tentar bater
+    local tool = char:FindFirstChildOfClass("Tool")
+    if tool then
+        game:GetService("ReplicatedStorage").RigControllerEvent:FireServer("weaponChange", tostring(tool.Name))
+    else
+        game:GetService("ReplicatedStorage").RigControllerEvent:FireServer("weaponChange", "None")
+    end
+    game:GetService("ReplicatedStorage").RigControllerEvent:FireServer("hit", realHits)
+end
+
+-- Loop principal automático
+task.spawn(function()
+    while task.wait(delayTime) do
+        for _, npc in pairs(workspace.Enemies:GetChildren()) do
+            if npc:FindFirstChild("HumanoidRootPart") and (npc.HumanoidRootPart.Position - hrp.Position).Magnitude <= range then
+                Attack(npc)
+            end
+        end
+    end
+end)
